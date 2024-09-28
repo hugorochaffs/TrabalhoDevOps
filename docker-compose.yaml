@@ -1,0 +1,65 @@
+
+services:
+  pg:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: docker
+      POSTGRES_DB: next-saas
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docker -d next-saas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s  
+
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner-api
+    ports:
+      - "3333:3333"
+    env_file:
+      - .env.dev
+    working_dir: /app/apps/api
+    volumes:
+      - ${PWD}:/app
+      - node-modules-root:/app/node_modules
+      - node-modules-api:/app/apps/api/node_modules
+    depends_on:
+      pg:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command: >
+      "pnpm db:migrate && pnpm dev"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner-web
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.dev
+    working_dir: /app/apps/web
+    volumes:
+      - ${PWD}:/app
+      - node-modules-root:/app/node_modules
+      - node-modules-web:/app/apps/web/node_modules
+      - next-web:/app/apps/web/.next
+      - packages-auth:/app/packages/auth/node_modules
+      - packages-env:/app/packages/env/node_modules
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  node-modules-root:
+  node-modules-api:
+  node-modules-web:
+  next-web:
+  packages-auth:
+  packages-env:

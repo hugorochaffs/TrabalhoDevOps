@@ -1,0 +1,32 @@
+FROM alpine:latest AS base
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN apk update
+RUN apk add nodejs npm
+RUN npm install -g pnpm
+RUN pnpm install
+
+FROM base AS frontend
+WORKDIR /app
+COPY . .
+COPY .env.prod ./app/.env
+COPY .env.prod ./app/apps/web/.env
+RUN pnpm install
+RUN pnpm build
+WORKDIR /app/apps/web
+EXPOSE 3000
+CMD ["pnpm", "start"]
+
+FROM base AS backend
+WORKDIR /app
+COPY . .
+COPY .env.prod ./app/.env
+WORKDIR /app/apps/api
+RUN pnpm install
+RUN pnpm prisma generate
+EXPOSE 3333
+CMD ["pnpm", "start"]
+
+
+
+
